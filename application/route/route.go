@@ -1,23 +1,30 @@
 package route
 
-import "erros"
+import (
+	"bufio"
+	"encoding/json"
+	"errors"
+	"os"
+	"strconv"
+	"strings"
+)
 
 type Route struct {
-	ID string 
-	ClientID string
-	Positions []Position
+	ID        string     `json:"routeId"`
+	ClientID  string     `json:"clientID"`
+	Positions []Position `json:"position"`
 }
 
 type Position struct {
-	Lat float64
-	Long float64
+	Lat  float64 `json:"lat"`
+	Long float64 `json:"long"`
 }
 
 type PartialRoutePosition struct {
-	ID string `json:"routeId"`
-	ClientID string `json:"clientId"`
+	ID       string    `json:"routeId"`
+	ClientID string    `json:"clientId"`
 	Position []float64 `json:"position"`
-	Finished bool `json:"finished"`
+	Finished bool      `json:"finished"`
 }
 
 func (r *Route) LoadPositions() error {
@@ -32,26 +39,25 @@ func (r *Route) LoadPositions() error {
 	}
 
 	defer f.Close()
-
-	scanner := bufio.NewScanner(f) 
+	scanner := bufio.NewScanner(f)
 
 	for scanner.Scan() {
-		data := string.Split(scanner.Text(), ",")
-		lat, err := strconv.ParseFloat(data[0], 64)
+		data := strings.Split(scanner.Text(), ",")
+		lat, err := strconv.ParseFloat(data[1], 64)
 		if err != nil {
 			return nil
 		}
-		long, err := strconv.ParseFloat(data[1], 64)
+		long, err := strconv.ParseFloat(data[0], 64)
 		if err != nil {
 			return nil
 		}
 
 		r.Positions = append(r.Positions, Position{
-			Lat: lat,
-			Long: long
+			Lat:  lat,
+			Long: long,
 		})
-		return nil
 	}
+	return nil
 }
 
 func (r *Route) ExportJsonPositions() ([]string, error) {
@@ -61,12 +67,19 @@ func (r *Route) ExportJsonPositions() ([]string, error) {
 	total := len(r.Positions)
 
 	for k, v := range r.Positions {
-		route.ID = r.ID 
+		route.ID = r.ID
 		route.ClientID = r.ClientID
-		route.Position = []float64(v.Lat, v.Long)
-		route.finished = false
-		if total - 1 == k {
-			route.finished = true
+		route.Position = []float64{v.Lat, v.Long}
+		route.Finished = false
+		if total-1 == k {
+			route.Finished = true
 		}
+
+		jsonRoute, err := json.Marshal(route)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, string(jsonRoute))
 	}
+	return result, nil
 }
